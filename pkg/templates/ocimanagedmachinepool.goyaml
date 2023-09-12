@@ -1,0 +1,47 @@
+# Copyright (c) 2023, Oracle and/or its affiliates.
+# Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl.
+
+apiVersion: v1
+kind: List
+{{- if .NodePools}}
+items:
+  {{- range .NodePools }}
+  - apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
+    kind: OCIManagedMachinePool
+    metadata:
+      name:  {{$.DisplayName}}-{{$.NodePoolHash}}
+      namespace: {{$.Namespace}}
+      labels:
+        verrazzano.io/node-pool: {{.Name}}
+    spec:
+      nodeEvictionNodePoolSettings:
+        evictionGraceDuration: PT1H
+        isForceDeleteAfterGraceDuration: false
+      nodePoolNodeConfig:
+        nodePoolPodNetworkOptionDetails:
+          cniType: "FLANNEL_OVERLAY"
+      nodeShape: {{.Shape}}
+      {{- if contains .Shape "Flex" }}
+      nodeShapeConfig:
+      {{- if .Ocpus }}
+        ocpus: "{{.Ocpus}}"
+      {{- end }}
+      {{- if .Memory }}
+        memoryInGBs: "{{.Memory}}"
+      {{- end }}
+      {{- end }}
+      nodeSourceViaImage:
+        imageId:  {{$.ActualImage}}
+        bootVolumeSizeInGBs: {{.VolumeSize}}
+      {{- if $.SSHPublicKey}}
+      sshPublicKey: {{$.SSHPublicKey}}
+      {{- end }}
+      {{- if .Version }}
+      version: {{.Version}}
+      {{- else }} # No Kubernetes version specified for pool
+      version: {{$.KubernetesVersion}}
+      {{- end }}
+  {{- end }}
+{{- else }}
+items: []
+{{- end }}
