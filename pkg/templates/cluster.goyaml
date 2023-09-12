@@ -1,0 +1,30 @@
+# Copyright (c) 2023, Oracle and/or its affiliates.
+# Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl.
+
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: Cluster
+metadata:
+  labels:
+    cluster.x-k8s.io/cluster-name: {{.Name}}
+    cluster.verrazzano.io/provisioner: Rancher
+  name: {{.Name}}
+  namespace: {{.Namespace}}
+spec:
+  clusterNetwork:
+    pods:
+      cidrBlocks:
+        - {{.PodCIDR}}
+    serviceDomain: cluster.local
+    services:
+      cidrBlocks:
+        - {{.ClusterCIDR}}
+  controlPlaneRef:
+    apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
+    kind: OCIManagedControlPlane
+    name: {{$.DisplayName}}
+    namespace: {{.Namespace}}
+  infrastructureRef:
+    apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
+    kind: OCIManagedCluster
+    name: {{.Name}}
+    namespace: {{.Namespace}}

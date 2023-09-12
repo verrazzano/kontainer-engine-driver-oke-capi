@@ -1,0 +1,52 @@
+# Copyright (c) 2023, Oracle and/or its affiliates.
+# Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl.
+
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
+kind: OCIManagedCluster
+metadata:
+  labels:
+    cluster.x-k8s.io/cluster-name:  {{.Name}}
+  name:  {{.Name}}
+  namespace: {{.Namespace}}
+spec:
+  identityRef:
+    apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
+    kind: OCIClusterIdentity
+    name: {{.Name}}
+    namespace: {{.Namespace}}
+  compartmentId:  {{.CompartmentID}}
+  region:  {{.Region}}
+{{- if .QuickCreateVCN }}
+  networkSpec:
+    vcn:
+      name: {{.Name}}
+      cidr: {{.ClusterCIDR}}
+      subnets:
+        - cidr: 10.96.0.8/29
+          name: control-plane-endpoint
+          role: control-plane-endpoint
+          type: public
+        - cidr: 10.96.128.0/27
+          name: service-lb
+          role: service-lb
+          type: public
+        - cidr: 10.96.192.0/18
+          name: worker
+          role: worker
+          type: private
+{{- else }} # Existing VCN
+  networkSpec:
+    skipNetworkManagement: true
+    vcn:
+      id:  {{.VCNID}}
+      {{- if .Subnets }}
+      subnets:
+        {{- range .Subnets }}
+        - id:  {{.Id}}
+          role: {{.Role}}
+          name: {{.Name}}
+          cidr: {{.CIDR}}
+          type: {{.Type}}
+        {{- end }}
+      {{- end }}
+{{- end }}
