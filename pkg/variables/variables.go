@@ -39,6 +39,7 @@ const (
 	loadBalancerSubnetRole         = "service-lb"
 	controlPlaneEndpointSubnetRole = "control-plane-endpoint"
 	workerSubnetRole               = "worker"
+	podSubnetRole                  = "pod"
 )
 
 type Subnet struct {
@@ -78,6 +79,7 @@ type (
 		WorkerNodeSubnet   string
 		ControlPlaneSubnet string
 		LoadBalancerSubnet string
+		PodSubnet          string
 		// Parsed subnets
 		Subnets     []Subnet `json:"subnets,omitempty"`
 		PodCIDR     string
@@ -85,6 +87,7 @@ type (
 
 		// Cluster topology and configuration
 		KubernetesVersion string
+		CNIType           string
 		SSHPublicKey      string
 		RawNodePools      []string
 		ApplyYAMLS        []string
@@ -126,10 +129,12 @@ func NewFromOptions(ctx context.Context, driverOptions *types.DriverOptions) (*V
 
 		// Networking
 		QuickCreateVCN:     options.GetValueFromDriverOptions(driverOptions, types.BoolType, driverconst.QuickCreateVCN, "quickCreateVcn").(bool),
+		CNIType:            options.GetValueFromDriverOptions(driverOptions, types.StringType, driverconst.CNIType, "cniType").(string),
 		VCNID:              options.GetValueFromDriverOptions(driverOptions, types.StringType, driverconst.VcnID, "vcnId").(string),
 		WorkerNodeSubnet:   options.GetValueFromDriverOptions(driverOptions, types.StringType, driverconst.WorkerNodeSubnet, "workerNodeSubnet").(string),
 		LoadBalancerSubnet: options.GetValueFromDriverOptions(driverOptions, types.StringType, driverconst.LoadBalancerSubnet, "loadBalancerSubnet").(string),
 		ControlPlaneSubnet: options.GetValueFromDriverOptions(driverOptions, types.StringType, driverconst.ControlPlaneSubnet, "controlPlaneSubnet").(string),
+		PodSubnet:          options.GetValueFromDriverOptions(driverOptions, types.StringType, driverconst.PodSubnet, "podSubnet").(string),
 		PodCIDR:            options.GetValueFromDriverOptions(driverOptions, types.StringType, driverconst.PodCIDR, "podCidr").(string),
 		ClusterCIDR:        options.GetValueFromDriverOptions(driverOptions, types.StringType, driverconst.ClusterCIDR, "clusterCidr").(string),
 
@@ -311,6 +316,9 @@ func (v *Variables) setSubnets(ctx context.Context, client oci.Client) error {
 	if err := addSubnetForRole(v.ControlPlaneSubnet, controlPlaneEndpointSubnetRole); err != nil {
 		return err
 	}
+	if err := addSubnetForRole(v.PodSubnet, podSubnetRole); err != nil {
+		return err
+	}
 	v.Subnets = subnets
 	return nil
 }
@@ -391,6 +399,8 @@ func (v *Variables) SetQuickCreateVCNInfo(ctx context.Context, di dynamic.Interf
 				v.LoadBalancerSubnet = subnetId
 			case workerSubnetRole:
 				v.WorkerNodeSubnet = subnetId
+			case podSubnetRole:
+				v.PodSubnet = subnetId
 			default: // we are not interested in any other subnets
 				continue
 			}

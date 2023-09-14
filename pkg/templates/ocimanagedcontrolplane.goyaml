@@ -10,4 +10,4 @@ spec:
   version: {{.KubernetesVersion}}
   clusterType: "ENHANCED_CLUSTER"
   clusterPodNetworkOptions:
-  - cniType: "FLANNEL_OVERLAY"
+  - cniType: {{.CNIType}}
