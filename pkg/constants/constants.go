@@ -16,6 +16,7 @@ const (
 	WorkerNodeSubnet   = "worker-node-subnet"
 	ControlPlaneSubnet = "control-plane-subnet"
 	LoadBalancerSubnet = "load-balancer-subnet"
+	PodSubnet          = "pod-subnet"
 	PodCIDR            = "pod-cidr"
 	ClusterCIDR        = "cluster-cidr"
 	ImageDisplayName   = "image-display-name"

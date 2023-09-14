@@ -160,6 +160,10 @@ func (d *OKEDriver) GetDriverCreateOptions(ctx context.Context) (*types.DriverFl
 		Type:  types.StringType,
 		Usage: "OCID for load balancer subnet",
 	}
+	driverFlag.Options[driverconst.PodSubnet] = &types.Flag{
+		Type:  types.StringType,
+		Usage: "OCID for pod subnet",
+	}
 
 	driverFlag.Options[driverconst.RawNodePools] = &types.Flag{
 		Type:  types.StringSliceType,
