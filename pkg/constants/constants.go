@@ -11,6 +11,7 @@ const (
 
 	CompartmentID      = "compartment-id"
 	QuickCreateVCN     = "quick-create-vcn"
+	CNIType            = "cni-type"
 	VcnID              = "vcn-id"
 	WorkerNodeSubnet   = "worker-node-subnet"
 	ControlPlaneSubnet = "control-plane-subnet"

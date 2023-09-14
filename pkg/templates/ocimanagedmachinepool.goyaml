@@ -19,7 +19,7 @@ items:
         isForceDeleteAfterGraceDuration: false
       nodePoolNodeConfig:
         nodePoolPodNetworkOptionDetails:
-          cniType: "FLANNEL_OVERLAY"
+          cniType: {{$.CNIType}}
       nodeShape: {{.Shape}}
       {{- if contains .Shape "Flex" }}
       nodeShapeConfig:

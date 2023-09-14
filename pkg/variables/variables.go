@@ -85,6 +85,7 @@ type (
 
 		// Cluster topology and configuration
 		KubernetesVersion string
+		CNIType           string
 		SSHPublicKey      string
 		RawNodePools      []string
 		ApplyYAMLS        []string
@@ -126,6 +127,7 @@ func NewFromOptions(ctx context.Context, driverOptions *types.DriverOptions) (*V
 
 		// Networking
 		QuickCreateVCN:     options.GetValueFromDriverOptions(driverOptions, types.BoolType, driverconst.QuickCreateVCN, "quickCreateVcn").(bool),
+		CNIType:            options.GetValueFromDriverOptions(driverOptions, types.StringType, driverconst.CNIType, "cniType").(string),
 		VCNID:              options.GetValueFromDriverOptions(driverOptions, types.StringType, driverconst.VcnID, "vcnId").(string),
 		WorkerNodeSubnet:   options.GetValueFromDriverOptions(driverOptions, types.StringType, driverconst.WorkerNodeSubnet, "workerNodeSubnet").(string),
 		LoadBalancerSubnet: options.GetValueFromDriverOptions(driverOptions, types.StringType, driverconst.LoadBalancerSubnet, "loadBalancerSubnet").(string),

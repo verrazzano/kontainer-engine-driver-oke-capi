@@ -101,6 +101,15 @@ func (d *OKEDriver) GetDriverCreateOptions(ctx context.Context) (*types.DriverFl
 			DefaultBool: false,
 		},
 	}
+
+	driverFlag.Options[driverconst.CNIType] = &types.Flag{
+		Type:  types.StringType,
+		Usage: "Network type",
+		Default: &types.Default{
+			DefaultString: "FLANNEL_OVERLAY",
+		},
+	}
+
 	driverFlag.Options[driverconst.KubernetesVersion] = &types.Flag{
 		Type:  types.StringType,
 		Usage: "The Kubernetes version that will be used for your master and worker nodes e.g. v1.25.4, v1.26.2",
