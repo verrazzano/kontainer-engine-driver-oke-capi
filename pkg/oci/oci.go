@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/oracle/oci-go-sdk/v65/common"
+	"github.com/oracle/oci-go-sdk/v65/containerengine"
 	"github.com/oracle/oci-go-sdk/v65/core"
 )
 
@@ -23,8 +24,8 @@ type Client interface {
 
 // ClientImpl OCI Client implementation
 type ClientImpl struct {
-	vnClient      core.VirtualNetworkClient
-	computeClient core.ComputeClient
+	vnClient              core.VirtualNetworkClient
+	containerEngineClient containerengine.ContainerEngineClient
 }
 
 // NewClient creates a new OCI Client
@@ -34,30 +35,32 @@ func NewClient(provider common.ConfigurationProvider) (Client, error) {
 		return nil, err
 	}
 
-	compute, err := core.NewComputeClientWithConfigurationProvider(provider)
+	containerEngineClient, err := containerengine.NewContainerEngineClientWithConfigurationProvider(provider)
 	if err != nil {
 		return nil, err
 	}
 
 	return &ClientImpl{
-		vnClient:      net,
-		computeClient: compute,
+		vnClient:              net,
+		containerEngineClient: containerEngineClient,
 	}, nil
 }
 
 // GetImageIdByName retrieves an image OCID given an image name and a compartment id, if that image exists.
 func (c *ClientImpl) GetImageIdByName(ctx context.Context, displayName, compartmentId string) (string, error) {
-	images, err := c.computeClient.ListImages(ctx, core.ListImagesRequest{
-		CompartmentId: &compartmentId,
-		DisplayName:   &displayName,
+	options, err := c.containerEngineClient.GetNodePoolOptions(ctx, containerengine.GetNodePoolOptionsRequest{
+		NodePoolOptionId: common.String("all"),
 	})
 	if err != nil {
 		return "", err
 	}
-	if len(images.Items) == 0 {
-		return "", fmt.Errorf("no images found for %s/%s", compartmentId, displayName)
+
+	for _, src := range options.Sources {
+		if displayName == *src.GetSourceName() {
+			return *src.(containerengine.NodeSourceViaImageOption).ImageId, nil
+		}
 	}
-	return *images.Items[0].Id, nil
+	return "", fmt.Errorf("no images found for %s/%s", compartmentId, displayName)
 }
 
 // GetSubnetById retrieves a subnet given that subnet's Id.
