@@ -27,8 +27,12 @@ items:
           infrastructureRef:
             apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
             kind: OCIManagedMachinePool
-            name: {{$.DisplayName}}-{{$.NodePoolHash}}
+            name: {{.Name}}
+          {{- if .Version }}
+          version: {{.Version}}
+          {{- else }} # No Kubernetes version specified for pool
           version: {{$.KubernetesVersion}}
+          {{- end }}
   {{- end }}
 {{- else }}
 items: []
