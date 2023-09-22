@@ -67,12 +67,9 @@ var OCIClientGetter = func(v *Variables) (oci.Client, error) {
 type (
 	//Variables are parameters for cluster lifecycle operations
 	Variables struct {
-		Name             string
-		DisplayName      string
-		Namespace        string
-		Hash             string
-		ControlPlaneHash string
-		NodePoolHash     string
+		Name        string
+		DisplayName string
+		Namespace   string
 
 		QuickCreateVCN     bool
 		VCNID              string
@@ -197,8 +194,6 @@ func (v *Variables) SetDynamicValues(ctx context.Context) error {
 		return err
 	}
 
-	// set hashes for controlplane updates
-	v.SetHashes()
 	return nil
 }
 

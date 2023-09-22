@@ -8,49 +8,6 @@ import (
 	"testing"
 )
 
-func TestHashString(t *testing.T) {
-	vars := &Variables{}
-	varsHashPresent := vars
-	varsHashPresent.Hash = "xyz"
-	var tests = []struct {
-		name  string
-		va    *Variables
-		vb    *Variables
-		equal bool
-	}{
-		{
-			"Equal hashes when equal objects",
-			vars,
-			vars,
-			true,
-		},
-		{
-			"Equal hashes when hash already computed on equal objects",
-			varsHashPresent,
-			vars,
-			true,
-		},
-		{
-			"Different hashes when different objects",
-			vars,
-			&Variables{KubernetesVersion: "v1.25.4"},
-			false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			tt.va.SetHashes()
-			tt.vb.SetHashes()
-			if tt.equal {
-				assert.Equal(t, tt.va.ControlPlaneHash, tt.vb.ControlPlaneHash)
-			} else {
-				assert.NotEqual(t, tt.va.ControlPlaneHash, tt.vb.ControlPlaneHash)
-			}
-		})
-	}
-}
-
 func TestParseNodePools(t *testing.T) {
 	v := &Variables{
 		RawNodePools: []string{

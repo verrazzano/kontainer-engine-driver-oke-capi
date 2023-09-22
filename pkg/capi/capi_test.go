@@ -89,7 +89,6 @@ func TestRenderObjects(t *testing.T) {
 		Region:               "xyz",
 		Tenancy:              "xyz",
 		User:                 "xyz",
-		Hash:                 "xyz",
 		ProviderId:           variables.ProviderId,
 
 		NodePools: []variables.NodePool{
