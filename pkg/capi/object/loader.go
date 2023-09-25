@@ -58,7 +58,7 @@ func createTextTemplate(o Object, variables variables.Variables) ([]byte, error)
 			for i := 0; i < len(split); i++ {
 				segment := split[i]
 				sb.WriteString(spacing)
-				sb.WriteString(strings.TrimSpace(segment))
+				sb.WriteString(segment)
 				if i < len(split)-1 {
 					sb.WriteRune('\n')
 				}

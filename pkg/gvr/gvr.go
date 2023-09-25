@@ -43,3 +43,15 @@ var OCIMachinePools = schema.GroupVersionResource{
 	Version:  V1Beta2Version,
 	Resource: "ocimanagedmachinepools",
 }
+
+var VerrazzanoFleet = schema.GroupVersionResource{
+	Group:    "addons.cluster.x-k8s.io",
+	Version:  "v1alpha1",
+	Resource: "verrazzanofleets",
+}
+
+var VerrazzanoManagedCluster = schema.GroupVersionResource{
+	Group:    "clusters.verrazzano.io",
+	Version:  "v1alpha1",
+	Resource: "verrazzanomanagedclusters",
+}

@@ -27,4 +27,8 @@ const (
 
 	CloudCredentialId = "cloud-credential-id"
 	Region            = "region"
+
+	InstallVerrazzano  = "install-verrazzano"
+	VerrazzanoResource = "verrazzano-resource"
+	VerrazzanoVersion  = "verrazzano-version"
 )

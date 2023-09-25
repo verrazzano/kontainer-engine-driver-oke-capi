@@ -13,6 +13,7 @@ import (
 	"github.com/verrazzano/kontainer-engine-driver-oke-capi/pkg/k8s"
 	"github.com/verrazzano/kontainer-engine-driver-oke-capi/pkg/provisioning"
 	"github.com/verrazzano/kontainer-engine-driver-oke-capi/pkg/variables"
+	"github.com/verrazzano/kontainer-engine-driver-oke-capi/pkg/version"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
 	v1 "k8s.io/api/core/v1"
@@ -62,12 +63,21 @@ func (d *OKEDriver) Remove(ctx context.Context, info *types.ClusterInfo) error {
 		return fmt.Errorf("failed to created admin cluster client: %v", err)
 	}
 	capiClient := d.NewCAPIClient(provisioning.NewLogger(ctx, adminKi, state.Name))
+	if err := capiClient.DeleteVerrazzanoResources(ctx, adminDi, state); err != nil {
+		return err
+	}
 	return capiClient.DeleteCluster(ctx, adminDi, adminKi, state)
 }
 
 // GetDriverCreateOptions implements driver interface
 func (d *OKEDriver) GetDriverCreateOptions(ctx context.Context) (*types.DriverFlags, error) {
 	d.Logger.Infof("capi.driver.GetDriverCreateOptions(...) called")
+
+	defaults, err := loadDefaults(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	driverFlag := types.DriverFlags{
 		Options: make(map[string]*types.Flag),
 	}
@@ -179,6 +189,27 @@ func (d *OKEDriver) GetDriverCreateOptions(ctx context.Context) (*types.DriverFl
 			DefaultStringSlice: &types.StringSlice{Value: []string{}}, // avoid nil value for init
 		},
 	}
+	driverFlag.Options[driverconst.VerrazzanoVersion] = &types.Flag{
+		Type:  types.StringType,
+		Usage: "The Verrazzano Version",
+		Default: &types.Default{
+			DefaultString: defaults.VerrazzanoVersion,
+		},
+	}
+	driverFlag.Options[driverconst.VerrazzanoResource] = &types.Flag{
+		Type:  types.StringType,
+		Usage: "The Verrazzano resource to install on the managed cluster",
+		Default: &types.Default{
+			DefaultString: variables.DefaultVerrazzanoResource,
+		},
+	}
+	driverFlag.Options[driverconst.InstallVerrazzano] = &types.Flag{
+		Type:  types.BoolType,
+		Usage: "Install Verrazzano addon",
+		Default: &types.Default{
+			DefaultBool: true,
+		},
+	}
 	d.Logger.Infof("capi.driver.GetDriverUpdateOptions(...) called returning driver flags %v", driverFlag)
 	return &driverFlag, nil
 }
@@ -186,6 +217,12 @@ func (d *OKEDriver) GetDriverCreateOptions(ctx context.Context) (*types.DriverFl
 // GetDriverUpdateOptions implements driver interface
 func (d *OKEDriver) GetDriverUpdateOptions(ctx context.Context) (*types.DriverFlags, error) {
 	d.Logger.Infof("capi.driver.GetDriverUpdateOptions(...) called")
+
+	defaults, err := loadDefaults(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	driverFlag := types.DriverFlags{
 		Options: make(map[string]*types.Flag),
 	}
@@ -201,7 +238,6 @@ func (d *OKEDriver) GetDriverUpdateOptions(ctx context.Context) (*types.DriverFl
 			DefaultString: "v1.25.4",
 		},
 	}
-
 	driverFlag.Options[driverconst.NodePublicKeyContents] = &types.Flag{
 		Type:  types.StringType,
 		Usage: "The contents of the SSH public key to use for the nodes",
@@ -218,6 +254,27 @@ func (d *OKEDriver) GetDriverUpdateOptions(ctx context.Context) (*types.DriverFl
 		Usage: "YAMLs to apply on managed cluster",
 		Default: &types.Default{
 			DefaultStringSlice: &types.StringSlice{Value: []string{}}, // avoid nil value for init
+		},
+	}
+	driverFlag.Options[driverconst.VerrazzanoVersion] = &types.Flag{
+		Type:  types.StringType,
+		Usage: "The Verrazzano Version",
+		Default: &types.Default{
+			DefaultString: defaults.VerrazzanoVersion,
+		},
+	}
+	driverFlag.Options[driverconst.VerrazzanoResource] = &types.Flag{
+		Type:  types.StringType,
+		Usage: "The Verrazzano resource to install on the managed cluster",
+		Default: &types.Default{
+			DefaultString: variables.DefaultVerrazzanoResource,
+		},
+	}
+	driverFlag.Options[driverconst.InstallVerrazzano] = &types.Flag{
+		Type:  types.BoolType,
+		Usage: "Install Verrazzano addon",
+		Default: &types.Default{
+			DefaultBool: true,
 		},
 	}
 	return &driverFlag, nil
@@ -377,6 +434,17 @@ func (d *OKEDriver) PostCheck(ctx context.Context, info *types.ClusterInfo) (*ty
 		d.Logger.Infof("Installing additional YAML documents on cluster %s", state.Name)
 		if err := capiClient.CreateOrUpdateYAMLDocuments(ctx, managedDI, state); err != nil {
 			return info, fmt.Errorf("failed to install additional YAML documents on cluster %s: %v", state.Name, err)
+		}
+	}
+	if state.InstallVerrazzano {
+		d.Logger.Infof("Updating Verrazzano on cluster %v", state.Name)
+		if err := capiClient.UpdateVerrazzano(ctx, adminDi, state); err != nil {
+			return info, err
+		}
+	} else {
+		d.Logger.Infof("Uninstalling Verrazzano on cluster %v", state.Name)
+		if err := capiClient.DeleteVerrazzanoResources(ctx, adminDi, state); err != nil {
+			return info, err
 		}
 	}
 
@@ -603,6 +671,18 @@ func (d *OKEDriver) doCreateOrUpdate(ctx context.Context, state *variables.Varia
 		return fmt.Errorf("failed to create objects: %v", err)
 	}
 	return nil
+}
+
+func loadDefaults(ctx context.Context) (*version.Defaults, error) {
+	ki, err := k8s.InjectedInterface()
+	if err != nil {
+		return nil, fmt.Errorf("failed to load kubernetes interface for default values: %v", err)
+	}
+	defaults, err := version.LoadDefaults(ctx, ki)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load default values: %v", err)
+	}
+	return defaults, nil
 }
 
 func (d *OKEDriver) NewCAPIClient(logger *provisioning.Logger) *capi.CAPIClient {

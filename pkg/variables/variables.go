@@ -40,6 +40,33 @@ const (
 	controlPlaneEndpointSubnetRole = "control-plane-endpoint"
 	workerSubnetRole               = "worker"
 	podSubnetRole                  = "pod"
+
+	DefaultVerrazzanoResource = `spec:
+  profile: managed-cluster
+  components:
+    ingressNGINX:
+      overrides:
+      - values:
+          controller:
+            service:
+              annotations:
+                service.beta.kubernetes.io/oci-load-balancer-shape: flexible
+                service.beta.kubernetes.io/oci-load-balancer-shape-flex-max: "100"
+                service.beta.kubernetes.io/oci-load-balancer-shape-flex-min: "10"
+      type: LoadBalancer
+    istio:
+      overrides:
+      - values:
+          apiVersion: install.istio.io/v1alpha1
+          kind: IstioOperator
+          spec:
+            values:
+              gateways:
+                istio-ingressgateway:
+                  serviceAnnotations:
+                    service.beta.kubernetes.io/oci-load-balancer-shape: flexible
+                    service.beta.kubernetes.io/oci-load-balancer-shape-flex-max: "100"
+                    service.beta.kubernetes.io/oci-load-balancer-shape-flex-min: "10"`
 )
 
 type Subnet struct {
@@ -106,6 +133,13 @@ type (
 		Tenancy              string
 		User                 string
 
+		// Verrazzano settings
+		InstallVerrazzano bool
+		// Set to true during Updates
+		UninstallVerrazzano bool
+		VerrazzanoResource  string
+		VerrazzanoVersion   string
+
 		// Supplied for templating
 		ProviderId string
 	}
@@ -140,6 +174,11 @@ func NewFromOptions(ctx context.Context, driverOptions *types.DriverOptions) (*V
 		RawNodePools:     options.GetValueFromDriverOptions(driverOptions, types.StringSliceType, driverconst.RawNodePools, "nodePools").(*types.StringSlice).Value,
 		ApplyYAMLS:       options.GetValueFromDriverOptions(driverOptions, types.StringSliceType, driverconst.ApplyYAMLs, "applyYamls").(*types.StringSlice).Value,
 
+		// Verrazzano settings
+		VerrazzanoResource: options.GetValueFromDriverOptions(driverOptions, types.StringType, driverconst.VerrazzanoResource, "verrazzanoResource").(string),
+		VerrazzanoVersion:  options.GetValueFromDriverOptions(driverOptions, types.StringType, driverconst.VerrazzanoVersion, "verrazzanoVersion").(string),
+		InstallVerrazzano:  options.GetValueFromDriverOptions(driverOptions, types.BoolType, driverconst.InstallVerrazzano, "installVerrazzano").(bool),
+
 		ImageID:    options.GetValueFromDriverOptions(driverOptions, types.StringType, driverconst.ImageId, "imageId").(string),
 		ProviderId: ProviderId,
 	}
@@ -153,6 +192,11 @@ func NewFromOptions(ctx context.Context, driverOptions *types.DriverOptions) (*V
 
 // SetUpdateValues are the values potentially changed during an update operation
 func (v *Variables) SetUpdateValues(ctx context.Context, vNew *Variables) error {
+	// Uninstall Verrazzano if the new state has no Verrazzano
+	v.UninstallVerrazzano = false
+	if v.InstallVerrazzano && !vNew.InstallVerrazzano {
+		v.UninstallVerrazzano = true
+	}
 	v.KubernetesVersion = vNew.KubernetesVersion
 	v.ImageDisplayName = vNew.ImageDisplayName
 	v.RawNodePools = vNew.RawNodePools
@@ -160,6 +204,9 @@ func (v *Variables) SetUpdateValues(ctx context.Context, vNew *Variables) error 
 	v.DisplayName = vNew.DisplayName
 	v.ImageID = vNew.ImageID
 	v.ApplyYAMLS = vNew.ApplyYAMLS
+	v.InstallVerrazzano = vNew.InstallVerrazzano
+	v.VerrazzanoVersion = vNew.VerrazzanoVersion
+	v.VerrazzanoResource = vNew.VerrazzanoResource
 	return v.SetDynamicValues(ctx)
 }
 
