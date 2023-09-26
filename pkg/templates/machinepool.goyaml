@@ -17,8 +17,6 @@ items:
     spec:
       clusterName: {{$.Name}}
       replicas: {{.Replicas}}
-      selector:
-        matchLabels: null
       template:
         spec:
           bootstrap:

@@ -22,3 +22,6 @@ var MachinePool string
 
 //go:embed ocimanagedmachinepool.goyaml
 var OCIManagedMachinePool string
+
+//go:embed verrazzanofleet.goyaml
+var VerrazzanoFleet string
