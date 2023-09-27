@@ -117,7 +117,12 @@ var Workers = []Object{
 var capi = []Object{
 	CAPICluster,
 	{Text: templates.ClusterIdentity},
-	{Text: templates.OCIManagedCluster},
+	{
+		Text: templates.OCIManagedCluster,
+		LockedFields: map[string]bool{
+			"networkSpec": true,
+		},
+	},
 }
 
 var CAPICluster = Object{Text: templates.Cluster}
