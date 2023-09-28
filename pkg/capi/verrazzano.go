@@ -47,6 +47,17 @@ func (c *CAPIClient) DeleteVerrazzanoResources(ctx context.Context, adminDi dyna
 	return nil
 }
 
+func (c *CAPIClient) CreateImagePullSecrets(ctx context.Context, adminDi dynamic.Interface, v *variables.Variables) error {
+	if v.CreateImagePullSecrets {
+		if _, err := createOrUpdateObject(ctx, adminDi, object.Object{
+			Text: templates.ImagePullSecret,
+		}, v); err != nil {
+			return fmt.Errorf("image pull secret(s) creation error: %v", err)
+		}
+	}
+	return nil
+}
+
 func deleteVMC(ctx context.Context, adminDi dynamic.Interface, v *variables.Variables) error {
 	// Clean up the admin cluster VMC
 	err := adminDi.Resource(gvr.VerrazzanoManagedCluster).Namespace(verrazzanoMCNamespace).Delete(ctx, v.Name, metav1.DeleteOptions{})

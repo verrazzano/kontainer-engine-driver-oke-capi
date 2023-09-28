@@ -5,6 +5,7 @@ package variables
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -41,6 +42,15 @@ const (
 	workerSubnetRole               = "worker"
 	podSubnetRole                  = "pod"
 
+	ImagePullConfigJson = `{
+    "auths": {
+        "%s": {
+            "username": "%s",
+            "password": "%s",
+            "email": "%s"
+        }
+    }
+}`
 	DefaultVerrazzanoResource = `spec:
   profile: managed-cluster
   components:
@@ -123,6 +133,17 @@ type (
 		ImageID          string
 		ActualImage      string
 
+		// Private registry
+		PrivateRegistry string
+
+		// Image pull secret
+		CreateImagePullSecrets  bool
+		DeleteImagePullSecrets  bool
+		ImagePullSecretUsername string
+		ImagePullSecretPassword string
+		ImagePullSecretEmail    string
+		DockerConfigJson        string
+
 		// OCI Credentials
 		CloudCredentialId    string
 		CompartmentID        string
@@ -139,6 +160,7 @@ type (
 		UninstallVerrazzano bool
 		VerrazzanoResource  string
 		VerrazzanoVersion   string
+		VerrazzanoTag       string
 
 		// Supplied for templating
 		ProviderId string
@@ -174,7 +196,17 @@ func NewFromOptions(ctx context.Context, driverOptions *types.DriverOptions) (*V
 		RawNodePools:     options.GetValueFromDriverOptions(driverOptions, types.StringSliceType, driverconst.RawNodePools, "nodePools").(*types.StringSlice).Value,
 		ApplyYAMLS:       options.GetValueFromDriverOptions(driverOptions, types.StringSliceType, driverconst.ApplyYAMLs, "applyYamls").(*types.StringSlice).Value,
 
+		// Private Registry
+		PrivateRegistry: options.GetValueFromDriverOptions(driverOptions, types.StringType, driverconst.PrivateRegistry, "privateRegistry").(string),
+
+		// Image pull secret
+		CreateImagePullSecrets:  options.GetValueFromDriverOptions(driverOptions, types.BoolType, driverconst.CreateImagePullSecrets, "createImagePullSecrets").(bool),
+		ImagePullSecretUsername: options.GetValueFromDriverOptions(driverOptions, types.StringType, driverconst.ImagePullSecretUsername, "imagePullSecretUsername").(string),
+		ImagePullSecretPassword: options.GetValueFromDriverOptions(driverOptions, types.StringType, driverconst.ImagePullSecretPassword, "imagePullSecretPassword").(string),
+		ImagePullSecretEmail:    options.GetValueFromDriverOptions(driverOptions, types.StringType, driverconst.ImagePullSecretEmail, "imagePullSecretEmail").(string),
+
 		// Verrazzano settings
+		VerrazzanoTag:      options.GetValueFromDriverOptions(driverOptions, types.StringType, driverconst.VerrazzanoTag, "verrazzanoTag").(string),
 		VerrazzanoResource: options.GetValueFromDriverOptions(driverOptions, types.StringType, driverconst.VerrazzanoResource, "verrazzanoResource").(string),
 		VerrazzanoVersion:  options.GetValueFromDriverOptions(driverOptions, types.StringType, driverconst.VerrazzanoVersion, "verrazzanoVersion").(string),
 		InstallVerrazzano:  options.GetValueFromDriverOptions(driverOptions, types.BoolType, driverconst.InstallVerrazzano, "installVerrazzano").(bool),
@@ -240,6 +272,28 @@ func (v *Variables) SetDynamicValues(ctx context.Context) error {
 	if err := v.setSubnets(ctx, ociClient); err != nil {
 		return err
 	}
+	if v.CreateImagePullSecrets {
+		if err := v.SetDockerConfigJson(); err != nil {
+			return err
+		}
+	} else {
+		v.DockerConfigJson = ""
+	}
+
+	return nil
+}
+
+// SetDockerConfigJson sets the docker configuration payload for the image pull secret
+func (v *Variables) SetDockerConfigJson() error {
+	if v.PrivateRegistry == "" || v.ImagePullSecretUsername == "" || v.ImagePullSecretPassword == "" || v.ImagePullSecretEmail == "" {
+		return fmt.Errorf("Failed to create image pull secret due to missing field.")
+	}
+	registry := v.PrivateRegistry
+	if strings.Contains(v.PrivateRegistry, "/") {
+		registry = v.PrivateRegistry[:strings.IndexByte(v.PrivateRegistry, '/')]
+	}
+	dockerConfig := fmt.Sprintf(ImagePullConfigJson, registry, v.ImagePullSecretUsername, v.ImagePullSecretPassword, v.ImagePullSecretEmail)
+	v.DockerConfigJson = base64.StdEncoding.EncodeToString([]byte(dockerConfig))
 
 	return nil
 }

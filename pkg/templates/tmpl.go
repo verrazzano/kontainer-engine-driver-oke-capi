@@ -25,3 +25,6 @@ var OCIManagedMachinePool string
 
 //go:embed verrazzanofleet.goyaml
 var VerrazzanoFleet string
+
+//go:embed imagepullsecret.goyaml
+var ImagePullSecret string

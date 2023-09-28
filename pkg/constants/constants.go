@@ -31,4 +31,12 @@ const (
 	InstallVerrazzano  = "install-verrazzano"
 	VerrazzanoResource = "verrazzano-resource"
 	VerrazzanoVersion  = "verrazzano-version"
+	VerrazzanoTag      = "verrazzano-tag"
+
+	PrivateRegistry = "private-registry"
+
+	CreateImagePullSecrets  = "create-image-pull-secrets"
+	ImagePullSecretUsername = "image-pull-secret-username"
+	ImagePullSecretPassword = "image-pull-secret-password"
+	ImagePullSecretEmail    = "image-pull-secret-email"
 )

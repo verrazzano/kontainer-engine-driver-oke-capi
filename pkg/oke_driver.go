@@ -210,6 +210,29 @@ func (d *OKEDriver) GetDriverCreateOptions(ctx context.Context) (*types.DriverFl
 			DefaultBool: true,
 		},
 	}
+	driverFlag.Options[driverconst.VerrazzanoTag] = &types.Flag{
+		Type:  types.StringType,
+		Usage: "The Verrazzano Tag Override",
+	}
+	driverFlag.Options[driverconst.CreateImagePullSecrets] = &types.Flag{
+		Type:  types.BoolType,
+		Usage: "Create the Verrazzano image pull secrets",
+		Default: &types.Default{
+			DefaultBool: false,
+		},
+	}
+	driverFlag.Options[driverconst.ImagePullSecretUsername] = &types.Flag{
+		Type:  types.StringType,
+		Usage: "The image pull secret registry user name",
+	}
+	driverFlag.Options[driverconst.ImagePullSecretPassword] = &types.Flag{
+		Type:  types.StringType,
+		Usage: "The image pull secret registry user password",
+	}
+	driverFlag.Options[driverconst.ImagePullSecretEmail] = &types.Flag{
+		Type:  types.StringType,
+		Usage: "The image pull secret registry email",
+	}
 	d.Logger.Infof("capi.driver.GetDriverUpdateOptions(...) called returning driver flags %v", driverFlag)
 	return &driverFlag, nil
 }
@@ -276,6 +299,22 @@ func (d *OKEDriver) GetDriverUpdateOptions(ctx context.Context) (*types.DriverFl
 		Default: &types.Default{
 			DefaultBool: true,
 		},
+	}
+	driverFlag.Options[driverconst.VerrazzanoTag] = &types.Flag{
+		Type:  types.StringType,
+		Usage: "The Verrazzano Tag Override",
+	}
+	driverFlag.Options[driverconst.ImagePullSecretUsername] = &types.Flag{
+		Type:  types.StringType,
+		Usage: "The image pull secret registry user name",
+	}
+	driverFlag.Options[driverconst.ImagePullSecretPassword] = &types.Flag{
+		Type:  types.StringType,
+		Usage: "The image pull secret registry user password",
+	}
+	driverFlag.Options[driverconst.ImagePullSecretEmail] = &types.Flag{
+		Type:  types.StringType,
+		Usage: "The image pull secret registry email",
 	}
 	return &driverFlag, nil
 }
@@ -439,6 +478,10 @@ func (d *OKEDriver) PostCheck(ctx context.Context, info *types.ClusterInfo) (*ty
 	if state.InstallVerrazzano {
 		d.Logger.Infof("Updating Verrazzano on cluster %v", state.Name)
 		if err := capiClient.UpdateVerrazzano(ctx, adminDi, state); err != nil {
+			return info, err
+		}
+		// Create the image pull secret if required
+		if err := capiClient.CreateImagePullSecrets(ctx, adminDi, state); err != nil {
 			return info, err
 		}
 	} else {
