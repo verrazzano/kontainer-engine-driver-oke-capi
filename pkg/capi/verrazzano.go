@@ -37,6 +37,7 @@ func (c *CAPIClient) UpdateVerrazzano(ctx context.Context, adminDi dynamic.Inter
 // DeleteVerrazzanoResources deletes the Verrazzano resource on the managed cluster, and the VerrazzanoManagedCluster on the admin cluster
 func (c *CAPIClient) DeleteVerrazzanoResources(ctx context.Context, adminDi dynamic.Interface, v *variables.Variables) error {
 	if v.UninstallVerrazzano || v.InstallVerrazzano {
+		_ = c.plog.Infof("Uninstalling Verrazzano on cluster %v", v.Name)
 		if err := deleteVMC(ctx, adminDi, v); err != nil {
 			return err
 		}
