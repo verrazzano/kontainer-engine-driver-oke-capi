@@ -417,12 +417,6 @@ func (d *OKEDriver) PostCheck(ctx context.Context, info *types.ClusterInfo) (*ty
 	if !hasToken {
 		_ = plog.Infof("Connected to cluster endpoint")
 	}
-	if state.IsSingleNodeCluster() {
-		d.Logger.Infof("Setting %s cluster to be a single-node cluster", state.Name)
-		if err := k8s.SetSingleNodeTaints(ctx, managedKI); err != nil {
-			return info, fmt.Errorf("failed to setup single node cluster: %v", err)
-		}
-	}
 
 	managedDI, err := k8s.NewDynamicForKubeconfig(kubeConfigBytes)
 	if err != nil {
@@ -442,7 +436,6 @@ func (d *OKEDriver) PostCheck(ctx context.Context, info *types.ClusterInfo) (*ty
 			return info, err
 		}
 	} else {
-		d.Logger.Infof("Uninstalling Verrazzano on cluster %v", state.Name)
 		if err := capiClient.DeleteVerrazzanoResources(ctx, adminDi, state); err != nil {
 			return info, err
 		}

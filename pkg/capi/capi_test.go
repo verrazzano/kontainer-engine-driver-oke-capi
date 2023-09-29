@@ -187,7 +187,7 @@ func createTestCluster(v *variables.Variables, cReady, iReady bool, phase string
 
 func createTestDIWithClusterAndMachine() dynamic.Interface {
 	cluster := createTestCluster(testVariables, true, true, clusterPhaseProvisioned)
-	machine := createTestMachine(testVariables, machinePhaseRunning)
+	machine := createTestMachine(testVariables, machinePoolPhaseRunning)
 	scheme := runtime.NewScheme()
 	scheme.AddKnownTypeWithName(listGVK(machine), &unstructured.UnstructuredList{})
 	scheme.AddKnownTypeWithName(schema.GroupVersionKind{
