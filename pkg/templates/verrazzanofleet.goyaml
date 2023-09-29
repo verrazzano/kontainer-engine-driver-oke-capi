@@ -7,6 +7,17 @@ metadata:
   name: {{.Name}}
   namespace: {{.Namespace}}
 spec:
+{{- if .PrivateRegistry }}
+  {{- if .DockerConfigJson }}
+  imagePullSecrets:
+    - name: verrazzano-container-registry
+  {{- end }}
+  privateRegistry:
+    enabled: true
+  image:
+    repository: {{.PrivateRegistry}}
+    tag: {{.VerrazzanoTag}}
+{{- end }}
   clusterSelector:
     name: {{.Name}}
   verrazzano:

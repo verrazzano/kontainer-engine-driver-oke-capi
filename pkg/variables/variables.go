@@ -5,6 +5,7 @@ package variables
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,6 +17,7 @@ import (
 	"github.com/verrazzano/kontainer-engine-driver-oke-capi/pkg/gvr"
 	"github.com/verrazzano/kontainer-engine-driver-oke-capi/pkg/k8s"
 	"github.com/verrazzano/kontainer-engine-driver-oke-capi/pkg/oci"
+	"github.com/verrazzano/kontainer-engine-driver-oke-capi/pkg/version"
 	"gopkg.in/yaml.v3"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -41,6 +43,15 @@ const (
 	workerSubnetRole               = "worker"
 	podSubnetRole                  = "pod"
 
+	ImagePullConfigJson = `{
+    "auths": {
+        "%s": {
+            "username": "%s",
+            "password": "%s",
+            "email": "%s"
+        }
+    }
+}`
 	DefaultVerrazzanoResource = `spec:
   profile: managed-cluster
   components:
@@ -123,6 +134,17 @@ type (
 		ImageID          string
 		ActualImage      string
 
+		// Private registry
+		PrivateRegistry string
+
+		// Image pull secret
+		CreateImagePullSecrets  bool
+		DeleteImagePullSecrets  bool
+		ImagePullSecretUsername string
+		ImagePullSecretPassword string
+		ImagePullSecretEmail    string
+		DockerConfigJson        string
+
 		// OCI Credentials
 		CloudCredentialId    string
 		CompartmentID        string
@@ -139,6 +161,7 @@ type (
 		UninstallVerrazzano bool
 		VerrazzanoResource  string
 		VerrazzanoVersion   string
+		VerrazzanoTag       string
 
 		// Supplied for templating
 		ProviderId string
@@ -174,6 +197,15 @@ func NewFromOptions(ctx context.Context, driverOptions *types.DriverOptions) (*V
 		RawNodePools:     options.GetValueFromDriverOptions(driverOptions, types.StringSliceType, driverconst.RawNodePools, "nodePools").(*types.StringSlice).Value,
 		ApplyYAMLS:       options.GetValueFromDriverOptions(driverOptions, types.StringSliceType, driverconst.ApplyYAMLs, "applyYamls").(*types.StringSlice).Value,
 
+		// Private Registry
+		PrivateRegistry: options.GetValueFromDriverOptions(driverOptions, types.StringType, driverconst.PrivateRegistry, "privateRegistry").(string),
+
+		// Image pull secret
+		CreateImagePullSecrets:  options.GetValueFromDriverOptions(driverOptions, types.BoolType, driverconst.CreateImagePullSecrets, "createImagePullSecrets").(bool),
+		ImagePullSecretUsername: options.GetValueFromDriverOptions(driverOptions, types.StringType, driverconst.ImagePullSecretUsername, "imagePullSecretUsername").(string),
+		ImagePullSecretPassword: options.GetValueFromDriverOptions(driverOptions, types.StringType, driverconst.ImagePullSecretPassword, "imagePullSecretPassword").(string),
+		ImagePullSecretEmail:    options.GetValueFromDriverOptions(driverOptions, types.StringType, driverconst.ImagePullSecretEmail, "imagePullSecretEmail").(string),
+
 		// Verrazzano settings
 		VerrazzanoResource: options.GetValueFromDriverOptions(driverOptions, types.StringType, driverconst.VerrazzanoResource, "verrazzanoResource").(string),
 		VerrazzanoVersion:  options.GetValueFromDriverOptions(driverOptions, types.StringType, driverconst.VerrazzanoVersion, "verrazzanoVersion").(string),
@@ -197,6 +229,10 @@ func (v *Variables) SetUpdateValues(ctx context.Context, vNew *Variables) error 
 	if v.InstallVerrazzano && !vNew.InstallVerrazzano {
 		v.UninstallVerrazzano = true
 	}
+	v.DeleteImagePullSecrets = false
+	if v.CreateImagePullSecrets && !vNew.CreateImagePullSecrets {
+		v.DeleteImagePullSecrets = true
+	}
 	v.KubernetesVersion = vNew.KubernetesVersion
 	v.ImageDisplayName = vNew.ImageDisplayName
 	v.RawNodePools = vNew.RawNodePools
@@ -207,6 +243,11 @@ func (v *Variables) SetUpdateValues(ctx context.Context, vNew *Variables) error 
 	v.InstallVerrazzano = vNew.InstallVerrazzano
 	v.VerrazzanoVersion = vNew.VerrazzanoVersion
 	v.VerrazzanoResource = vNew.VerrazzanoResource
+	v.CreateImagePullSecrets = vNew.CreateImagePullSecrets
+	v.ImagePullSecretUsername = vNew.ImagePullSecretUsername
+	v.ImagePullSecretPassword = vNew.ImagePullSecretPassword
+	v.ImagePullSecretEmail = vNew.ImagePullSecretEmail
+	v.PrivateRegistry = vNew.PrivateRegistry
 	return v.SetDynamicValues(ctx)
 }
 
@@ -240,6 +281,31 @@ func (v *Variables) SetDynamicValues(ctx context.Context) error {
 	if err := v.setSubnets(ctx, ociClient); err != nil {
 		return err
 	}
+	if v.CreateImagePullSecrets {
+		if err := v.SetDockerConfigJson(); err != nil {
+			return err
+		}
+	} else {
+		v.DockerConfigJson = ""
+	}
+	if err := v.setVerrazzanoTag(ctx, ki); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// SetDockerConfigJson sets the docker configuration payload for the image pull secret
+func (v *Variables) SetDockerConfigJson() error {
+	if v.PrivateRegistry == "" || v.ImagePullSecretUsername == "" || v.ImagePullSecretPassword == "" || v.ImagePullSecretEmail == "" {
+		return fmt.Errorf("Failed to create image pull secret due to missing field.")
+	}
+	registry := v.PrivateRegistry
+	if strings.Contains(v.PrivateRegistry, "/") {
+		registry = v.PrivateRegistry[:strings.IndexByte(v.PrivateRegistry, '/')]
+	}
+	dockerConfig := fmt.Sprintf(ImagePullConfigJson, registry, v.ImagePullSecretUsername, v.ImagePullSecretPassword, v.ImagePullSecretEmail)
+	v.DockerConfigJson = base64.StdEncoding.EncodeToString([]byte(dockerConfig))
 
 	return nil
 }
@@ -463,4 +529,13 @@ func (v *Variables) cloudCredentialNameAndNamespace() (string, string) {
 		return "cattle-global-data", split[0]
 	}
 	return split[1], split[0]
+}
+
+func (v *Variables) setVerrazzanoTag(ctx context.Context, ki kubernetes.Interface) error {
+	defaults, err := version.LoadDefaults(ctx, ki)
+	if err != nil {
+		return err
+	}
+	v.VerrazzanoTag = defaults.VerrazzanoTag
+	return nil
 }

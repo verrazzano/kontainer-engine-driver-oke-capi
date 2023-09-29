@@ -16,6 +16,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/kubernetes"
 )
 
 const (
@@ -45,6 +46,29 @@ func (c *CAPIClient) DeleteVerrazzanoResources(ctx context.Context, adminDi dyna
 			return err
 		}
 	}
+	return nil
+}
+
+func (c *CAPIClient) CreateImagePullSecrets(ctx context.Context, adminDi dynamic.Interface, v *variables.Variables) error {
+	if v.CreateImagePullSecrets {
+		if _, err := createOrUpdateObject(ctx, adminDi, object.Object{
+			Text: templates.ImagePullSecret,
+		}, v); err != nil {
+			return fmt.Errorf("image pull secret(s) creation error: %v", err)
+		}
+	}
+	return nil
+}
+
+func (c *CAPIClient) DeleteImagePullSecrets(ctx context.Context, adminKi kubernetes.Interface, v *variables.Variables) error {
+	err := adminKi.CoreV1().Secrets(v.Namespace).Delete(ctx, "verrazzano-container-registry", metav1.DeleteOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil
+		}
+		return err
+	}
+	_ = c.plog.Infof("Cleanup up image pull secrets")
 	return nil
 }
 

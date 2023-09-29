@@ -6,7 +6,7 @@ package version
 import (
 	"context"
 	"encoding/json"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"sort"
@@ -19,44 +19,54 @@ const (
 
 type Defaults struct {
 	VerrazzanoVersion string `json:"-"`
+	VerrazzanoTag     string `json:"-"`
+}
+
+type TagVersion struct {
+	Tag     string
+	Version string
 }
 
 func LoadDefaults(ctx context.Context, ki kubernetes.Interface) (*Defaults, error) {
-	verrazzanoVersion, err := getVerrazzanoVersion(ctx, ki)
+	tagVersion, err := getVerrazzanoTagVersion(ctx, ki)
 	if err != nil {
 		return nil, err
 	}
+	if tagVersion == nil {
+		return nil, errors.New("unknown Verrazzano defaults")
+	}
 	return &Defaults{
-		VerrazzanoVersion: verrazzanoVersion,
+		VerrazzanoVersion: tagVersion.Version,
+		VerrazzanoTag:     tagVersion.Tag,
 	}, nil
 }
 
-func getVerrazzanoVersion(ctx context.Context, ki kubernetes.Interface) (string, error) {
+func getVerrazzanoTagVersion(ctx context.Context, ki kubernetes.Interface) (*TagVersion, error) {
 	cm, err := ki.CoreV1().ConfigMaps(verrazzanoInstallNamespace).Get(ctx, verrazzanoConfigMapName, metav1.GetOptions{})
 	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return "", nil
-		}
-		return "", err
+		return nil, err
 	}
 	if cm.Data == nil {
-		return "", nil
+		return nil, errors.New("verrazzano-meta had no version data")
 	}
 	verrazzanoVersions := cm.Data["verrazzano-versions"]
 	if len(verrazzanoVersions) < 1 {
-		return "", nil
+		return nil, errors.New("verrazzano-meta had no verrazzano versions")
 	}
-
 	versionMapping := map[string]string{}
 	if err := json.Unmarshal([]byte(verrazzanoVersions), &versionMapping); err != nil {
-		return "", err
+		return nil, err
 	}
-
+	if len(versionMapping) < 1 {
+		return nil, errors.New("verrazzano version mapping was empty")
+	}
 	var versions []string
 	for k := range versionMapping {
 		versions = append(versions, k)
 	}
-
 	sort.Strings(versions)
-	return versions[0], nil
+	return &TagVersion{
+		Tag:     versions[0],
+		Version: versionMapping[versions[0]],
+	}, nil
 }
