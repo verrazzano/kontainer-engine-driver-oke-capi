@@ -21,12 +21,15 @@ func IsCAPIClusterReady(ctx context.Context, client dynamic.Interface, state *va
 		return err
 	}
 	if isClusterReady(cluster, state) {
-		machinesReady, err := areMachinesReady(ctx, client, state)
-		if err != nil {
-			_ = plog.ClusterStatus(cluster)
-			return errors.New("Waiting for nodes to be ready")
+		poolsReady := true
+		if len(state.NodePools) > 0 {
+			poolsReady, err = areMachinePoolsReady(ctx, client, state)
+			if err != nil {
+				_ = plog.ClusterStatus(cluster)
+				return errors.New("Waiting for nodes to be ready")
+			}
 		}
-		if machinesReady {
+		if poolsReady {
 			return nil
 		}
 	}
@@ -66,8 +69,8 @@ func isClusterReady(cluster *unstructured.Unstructured, state *variables.Variabl
 	return true
 }
 
-func areMachinesReady(ctx context.Context, client dynamic.Interface, state *variables.Variables) (bool, error) {
-	machineList, err := client.Resource(gvr.MachinePool).List(ctx, metav1.ListOptions{
+func areMachinePoolsReady(ctx context.Context, client dynamic.Interface, state *variables.Variables) (bool, error) {
+	poolList, err := client.Resource(gvr.MachinePool).List(ctx, metav1.ListOptions{
 		LabelSelector: metav1.FormatLabelSelector(&metav1.LabelSelector{
 			MatchLabels: map[string]string{
 				"cluster.x-k8s.io/cluster-name": state.Name,
@@ -78,12 +81,12 @@ func areMachinesReady(ctx context.Context, client dynamic.Interface, state *vari
 		return false, err
 	}
 
-	if machineList == nil || len(machineList.Items) < 1 {
+	if poolList == nil || len(poolList.Items) < 1 {
 		return false, nil
 	}
 
-	for _, machine := range machineList.Items {
-		phase, err := object.NestedField(machine.Object, "status", "phase")
+	for _, pool := range poolList.Items {
+		phase, err := object.NestedField(pool.Object, "status", "phase")
 		if err != nil {
 			return false, nil
 		}
@@ -91,7 +94,7 @@ func areMachinesReady(ctx context.Context, client dynamic.Interface, state *vari
 		if !ok {
 			return false, nil
 		}
-		if phaseString != machinePhaseRunning {
+		if phaseString != machinePoolPhaseRunning {
 			return false, nil
 		}
 	}

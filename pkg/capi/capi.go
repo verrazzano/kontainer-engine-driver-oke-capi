@@ -35,7 +35,7 @@ const (
 
 const (
 	clusterPhaseProvisioned = "Provisioned"
-	machinePhaseRunning     = "Running"
+	machinePoolPhaseRunning = "Running"
 )
 
 type CAPIClient struct {
