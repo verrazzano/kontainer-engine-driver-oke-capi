@@ -16,6 +16,7 @@ spec:
     enabled: true
   image:
     repository: {{.PrivateRegistry}}
+    tag: {{.VerrazzanoTag}}
 {{- end }}
   clusterSelector:
     name: {{.Name}}

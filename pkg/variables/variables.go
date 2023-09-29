@@ -17,6 +17,7 @@ import (
 	"github.com/verrazzano/kontainer-engine-driver-oke-capi/pkg/gvr"
 	"github.com/verrazzano/kontainer-engine-driver-oke-capi/pkg/k8s"
 	"github.com/verrazzano/kontainer-engine-driver-oke-capi/pkg/oci"
+	"github.com/verrazzano/kontainer-engine-driver-oke-capi/pkg/version"
 	"gopkg.in/yaml.v3"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -206,7 +207,6 @@ func NewFromOptions(ctx context.Context, driverOptions *types.DriverOptions) (*V
 		ImagePullSecretEmail:    options.GetValueFromDriverOptions(driverOptions, types.StringType, driverconst.ImagePullSecretEmail, "imagePullSecretEmail").(string),
 
 		// Verrazzano settings
-		VerrazzanoTag:      options.GetValueFromDriverOptions(driverOptions, types.StringType, driverconst.VerrazzanoTag, "verrazzanoTag").(string),
 		VerrazzanoResource: options.GetValueFromDriverOptions(driverOptions, types.StringType, driverconst.VerrazzanoResource, "verrazzanoResource").(string),
 		VerrazzanoVersion:  options.GetValueFromDriverOptions(driverOptions, types.StringType, driverconst.VerrazzanoVersion, "verrazzanoVersion").(string),
 		InstallVerrazzano:  options.GetValueFromDriverOptions(driverOptions, types.BoolType, driverconst.InstallVerrazzano, "installVerrazzano").(bool),
@@ -229,6 +229,10 @@ func (v *Variables) SetUpdateValues(ctx context.Context, vNew *Variables) error 
 	if v.InstallVerrazzano && !vNew.InstallVerrazzano {
 		v.UninstallVerrazzano = true
 	}
+	v.DeleteImagePullSecrets = false
+	if v.CreateImagePullSecrets && !vNew.CreateImagePullSecrets {
+		v.DeleteImagePullSecrets = true
+	}
 	v.KubernetesVersion = vNew.KubernetesVersion
 	v.ImageDisplayName = vNew.ImageDisplayName
 	v.RawNodePools = vNew.RawNodePools
@@ -239,6 +243,11 @@ func (v *Variables) SetUpdateValues(ctx context.Context, vNew *Variables) error 
 	v.InstallVerrazzano = vNew.InstallVerrazzano
 	v.VerrazzanoVersion = vNew.VerrazzanoVersion
 	v.VerrazzanoResource = vNew.VerrazzanoResource
+	v.CreateImagePullSecrets = vNew.CreateImagePullSecrets
+	v.ImagePullSecretUsername = vNew.ImagePullSecretUsername
+	v.ImagePullSecretPassword = vNew.ImagePullSecretPassword
+	v.ImagePullSecretEmail = vNew.ImagePullSecretEmail
+	v.PrivateRegistry = vNew.PrivateRegistry
 	return v.SetDynamicValues(ctx)
 }
 
@@ -278,6 +287,9 @@ func (v *Variables) SetDynamicValues(ctx context.Context) error {
 		}
 	} else {
 		v.DockerConfigJson = ""
+	}
+	if err := v.setVerrazzanoTag(ctx, ki); err != nil {
+		return err
 	}
 
 	return nil
@@ -517,4 +529,13 @@ func (v *Variables) cloudCredentialNameAndNamespace() (string, string) {
 		return "cattle-global-data", split[0]
 	}
 	return split[1], split[0]
+}
+
+func (v *Variables) setVerrazzanoTag(ctx context.Context, ki kubernetes.Interface) error {
+	defaults, err := version.LoadDefaults(ctx, ki)
+	if err != nil {
+		return err
+	}
+	v.VerrazzanoTag = defaults.VerrazzanoTag
+	return nil
 }
