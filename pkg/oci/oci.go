@@ -50,6 +50,7 @@ func NewClient(provider common.ConfigurationProvider) (Client, error) {
 func (c *ClientImpl) GetImageIdByName(ctx context.Context, displayName, compartmentId string) (string, error) {
 	options, err := c.containerEngineClient.GetNodePoolOptions(ctx, containerengine.GetNodePoolOptionsRequest{
 		NodePoolOptionId: common.String("all"),
+		CompartmentId:    &compartmentId,
 	})
 	if err != nil {
 		return "", err
