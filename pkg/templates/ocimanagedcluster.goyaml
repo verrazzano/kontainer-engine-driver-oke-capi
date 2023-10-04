@@ -224,7 +224,7 @@ spec:
                       name: service-lb
                       role: service-lb
 {{- end }}
-{{- if .QuickCreateVCN }} # Existing VCN
+{{- if not .QuickCreateVCN }} # Existing VCN
     networkSpec:
         skipNetworkManagement: true
         vcn:
