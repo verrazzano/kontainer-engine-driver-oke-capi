@@ -19,14 +19,11 @@ items:
       nodeEvictionNodePoolSettings:
         evictionGraceDuration: PT1H
         isForceDeleteAfterGraceDuration: false
+      {{- if eq $.CNIType "FLANNEL_OVERLAY" }}
       nodePoolNodeConfig:
         nodePoolPodNetworkOptionDetails:
           cniType: {{$.CNIType}}
-          {{- if contains $.CNIType "OCI_VCN_IP_NATIVE" }}
-          vcnIpNativePodNetworkOptions:
-            subnetNames:
-            - pod
-          {{- end }}
+      {{- end }}
       nodeShape: {{.Shape}}
       {{- if contains .Shape "Flex" }}
       nodeShapeConfig:
